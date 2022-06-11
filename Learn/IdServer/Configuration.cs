@@ -43,7 +43,7 @@ namespace IdServer
                         IdentityServerConstants.StandardScopes.Profile
                     },
 
-                    RequireConsent = false
+                    RequireConsent = false,
                 }
             };
     }
