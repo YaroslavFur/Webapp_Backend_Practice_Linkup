@@ -5,6 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Security.Cryptography;
+using Server.Operators;
 
 namespace Server.Controllers
 {
@@ -12,15 +14,17 @@ namespace Server.Controllers
     [ApiController]
     public class LoginController : Controller
     {
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<UserModel> _userManager;
         private readonly IConfiguration _configuration;
+        private readonly JwtSecurityTokenHandler _jwtSecurityTokenHandler;
 
         public LoginController(
-            UserManager<IdentityUser> userManager,
+            UserManager<UserModel> userManager,
             IConfiguration configuration)
         {
             _userManager = userManager;
             _configuration = configuration;
+            _jwtSecurityTokenHandler = new JwtSecurityTokenHandler();
         }
 
         [HttpPost]
@@ -28,9 +32,9 @@ namespace Server.Controllers
         {
             var user = await _userManager.FindByNameAsync(model.Email);
             if (user == null)
-                return StatusCode(StatusCodes.Status401Unauthorized, new Response { Status = "Error", Message = "User not found" });
+                return StatusCode(StatusCodes.Status401Unauthorized, new { Status = "Error", Message = "User not found" });
             if (!(await _userManager.CheckPasswordAsync(user, model.Password)))
-                return StatusCode(StatusCodes.Status401Unauthorized, new Response { Status = "Error", Message = "Wrong email or password" });
+                return StatusCode(StatusCodes.Status401Unauthorized, new { Status = "Error", Message = "Wrong email or password" });
             
             var authClaims = new List<Claim>
             {
@@ -38,24 +42,22 @@ namespace Server.Controllers
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             };
 
-            string token = GetToken(authClaims);
+            _ = long.TryParse(_configuration["JWT:AccessTokenValidityInSeconds"], out long tokenValidityInSeconds);
+            _ = long.TryParse(_configuration["JWT:RefreshTokenValidityInSeconds"], out long refreshTokenValidityInSeconds);
 
-            return StatusCode(StatusCodes.Status200OK, new Response { Status = "Success", Message = token });
-        }
+            var token = TokenOperator.GenerateToken(authClaims, tokenValidityInSeconds, _configuration);
+            var refreshToken = TokenOperator.GenerateToken(new List<Claim>(), refreshTokenValidityInSeconds, _configuration);
 
-        private string GetToken(List<Claim> authClaims)
-        {
-            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
+            user.RefreshToken = refreshToken;
 
-            var token = new JwtSecurityToken(
-                issuer: _configuration["JWT:ValidIssuer"],
-                audience: _configuration["JWT:ValidAudience"],
-                expires: DateTime.Now.AddHours(1),
-                claims: authClaims,
-                signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
-                );
+            await _userManager.UpdateAsync(user);
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return StatusCode(StatusCodes.Status200OK, new 
+            { 
+                Status = "Success", 
+                Token = token,
+                RefreshToken = refreshToken 
+            });
         }
     }
 }
