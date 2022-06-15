@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Identity;
 using Server.Models;
 using Server.Operators;
 
+Console.WriteLine("Start, press key");
+Console.ReadKey();
+
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
 
@@ -52,8 +55,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-Console.WriteLine("Start, press key");
-Console.ReadKey();
+
 app.Run();
 
 Console.ReadKey();
