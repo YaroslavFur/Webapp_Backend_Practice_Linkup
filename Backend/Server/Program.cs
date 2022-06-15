@@ -52,7 +52,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
+Console.WriteLine("Start, press key");
+Console.ReadKey();
 app.Run();
 
 Console.ReadKey();
