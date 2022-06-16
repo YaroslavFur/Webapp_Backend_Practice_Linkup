@@ -64,20 +64,21 @@ namespace Server.Controllers
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Invalid refresh token" });
             }
 
-            _ = long.TryParse(_configuration["JWT:AccessTokenValidityInSeconds"], out long tokenValidityInSeconds);
-            _ = long.TryParse(_configuration["JWT:RefreshTokenValidityInSeconds"], out long refreshTokenValidityInSeconds);
-
-            string newAccessToken = TokenOperator.GenerateToken(accessTokenPrincipal.Claims.ToList(), tokenValidityInSeconds, _configuration);
-            string newRefreshToken = TokenOperator.GenerateToken(accessTokenPrincipal.Claims.ToList(), refreshTokenValidityInSeconds, _configuration);
-
-            user.RefreshToken = newRefreshToken;
-            await _userManager.UpdateAsync(user);
+            TokenModel tokens;
+            try
+            {
+                tokens = await TokenOperator.GenerateAccessRefreshTokens(user, _configuration, _userManager);
+            }
+            catch
+            {
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating tokens" });
+            }
 
             return StatusCode(StatusCodes.Status200OK, new
             {
                 Status = "Success",
-                Token = newAccessToken,
-                RefreshToken = newRefreshToken
+                Token = tokens.AccessToken,
+                RefreshToken = tokens.RefreshToken
             });
         }
 

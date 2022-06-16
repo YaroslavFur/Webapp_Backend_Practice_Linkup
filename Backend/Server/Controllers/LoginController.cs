@@ -16,7 +16,6 @@ namespace Server.Controllers
     {
         private readonly UserManager<UserModel> _userManager;
         private readonly IConfiguration _configuration;
-        private readonly JwtSecurityTokenHandler _jwtSecurityTokenHandler;
 
         public LoginController(
             UserManager<UserModel> userManager,
@@ -24,7 +23,6 @@ namespace Server.Controllers
         {
             _userManager = userManager;
             _configuration = configuration;
-            _jwtSecurityTokenHandler = new JwtSecurityTokenHandler();
         }
 
         [HttpPost]
@@ -35,28 +33,22 @@ namespace Server.Controllers
                 return StatusCode(StatusCodes.Status401Unauthorized, new { Status = "Error", Message = "User not found" });
             if (!(await _userManager.CheckPasswordAsync(user, model.Password)))
                 return StatusCode(StatusCodes.Status401Unauthorized, new { Status = "Error", Message = "Wrong email or password" });
-            
-            var authClaims = new List<Claim>
+
+            TokenModel tokens;
+            try
             {
-                new Claim(ClaimTypes.Email, user.UserName),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            };
+                tokens = await TokenOperator.GenerateAccessRefreshTokens(user, _configuration, _userManager);
+            }
+            catch
+            {
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating tokens" });
+            }
 
-            _ = long.TryParse(_configuration["JWT:AccessTokenValidityInSeconds"], out long tokenValidityInSeconds);
-            _ = long.TryParse(_configuration["JWT:RefreshTokenValidityInSeconds"], out long refreshTokenValidityInSeconds);
-
-            var token = TokenOperator.GenerateToken(authClaims, tokenValidityInSeconds, _configuration);
-            var refreshToken = TokenOperator.GenerateToken(new List<Claim>(), refreshTokenValidityInSeconds, _configuration);
-
-            user.RefreshToken = refreshToken;
-
-            await _userManager.UpdateAsync(user);
-
-            return StatusCode(StatusCodes.Status200OK, new 
-            { 
-                Status = "Success", 
-                Token = token,
-                RefreshToken = refreshToken 
+            return StatusCode(StatusCodes.Status201Created, new
+            {
+                Status = "Success",
+                Token = tokens.AccessToken,
+                RefreshToken = tokens.RefreshToken
             });
         }
     }

@@ -1,4 +1,6 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
+using Server.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -7,6 +9,26 @@ namespace Server.Operators
 {
     public class TokenOperator
     {
+        public static async Task<TokenModel> GenerateAccessRefreshTokens(UserModel user, IConfiguration configuration, UserManager<UserModel> _userManager)
+        {
+            var authClaims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Email, user.UserName),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            };
+
+            _ = long.TryParse(configuration["JWT:AccessTokenValidityInSeconds"], out long tokenValidityInSeconds);
+            _ = long.TryParse(configuration["JWT:RefreshTokenValidityInSeconds"], out long refreshTokenValidityInSeconds);
+
+            var token = GenerateToken(authClaims, tokenValidityInSeconds, configuration);
+            var refreshToken = GenerateToken(new List<Claim>(), refreshTokenValidityInSeconds, configuration);
+
+            user.RefreshToken = refreshToken;
+            await _userManager.UpdateAsync(user);
+
+            return new TokenModel { AccessToken = token, RefreshToken = refreshToken };
+        }
+
         public static string GenerateToken(List<Claim> authClaims, long expirationTimeInSeconds, IConfiguration configuration)
         {
             var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Secret"]));

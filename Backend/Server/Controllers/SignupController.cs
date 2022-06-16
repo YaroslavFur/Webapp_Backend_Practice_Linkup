@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Server.Controllers
 {
@@ -12,12 +13,14 @@ namespace Server.Controllers
     public class SignupController : Controller
     {
         private readonly UserManager<UserModel> _userManager;
+        private readonly IConfiguration _configuration;
 
         public SignupController(
             UserManager<UserModel> userManager,
             IConfiguration configuration)
         {
             _userManager = userManager;
+            _configuration = configuration;
         }
 
         [HttpPost]
@@ -31,16 +34,31 @@ namespace Server.Controllers
             if (!emailValidator.IsValid(model.Email))
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Invalid email" });
 
+            if (string.IsNullOrEmpty(model.Name) || string.IsNullOrEmpty(model.Surname))
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Name and surname can't be empty" });
+
             UserModel user = UserOperator.CreateUser(model);
 
             var result = await _userManager.CreateAsync(user, model.Password);
             if (!result.Succeeded)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = result.ToString() });
 
-            if (string.IsNullOrEmpty(model.Name) || string.IsNullOrEmpty(model.Surname))
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Name and surname can't be empty" });
+            TokenModel tokens;
+            try
+            {
+                tokens = await TokenOperator.GenerateAccessRefreshTokens(user, _configuration, _userManager);
+            }
+            catch
+            {
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating tokens" });
+            }
 
-            return StatusCode(StatusCodes.Status201Created, new { Status = "Success", Message = "User created successfully!" });
+            return StatusCode(StatusCodes.Status201Created, new
+            {
+                Status = "Success",
+                Token = tokens.AccessToken,
+                RefreshToken = tokens.RefreshToken
+            });
         }
     }
 }
