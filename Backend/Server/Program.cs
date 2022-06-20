@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Server.Models;
 using Server.Operators;
+using Amazon.S3;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -38,6 +39,9 @@ builder.Services.AddAuthentication(options =>
         options.RequireHttpsMetadata = false;
         options.TokenValidationParameters = TokenOperator.GetTokenValidationParameters(configuration);
     });
+
+builder.Services.AddDefaultAWSOptions(configuration.GetAWSOptions());
+builder.Services.AddAWSService<IAmazonS3>();
 
 
 builder.Services.AddControllers();

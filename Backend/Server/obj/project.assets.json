@@ -2,6 +2,42 @@
   "version": 3,
   "targets": {
     "net6.0": {
+      "AWSSDK.Core/3.7.12.2": {
+        "type": "package",
+        "compile": {
+          "lib/netcoreapp3.1/AWSSDK.Core.dll": {}
+        },
+        "runtime": {
+          "lib/netcoreapp3.1/AWSSDK.Core.dll": {}
+        }
+      },
+      "AWSSDK.Extensions.NETCore.Setup/3.7.2": {
+        "type": "package",
+        "dependencies": {
+          "AWSSDK.Core": "3.7.6",
+          "Microsoft.Extensions.Configuration.Abstractions": "2.0.0",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "2.0.0",
+          "Microsoft.Extensions.Logging.Abstractions": "2.0.0"
+        },
+        "compile": {
+          "lib/netstandard2.0/AWSSDK.Extensions.NETCore.Setup.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/AWSSDK.Extensions.NETCore.Setup.dll": {}
+        }
+      },
+      "AWSSDK.S3/3.7.9.18": {
+        "type": "package",
+        "dependencies": {
+          "AWSSDK.Core": "[3.7.12.2, 4.0.0)"
+        },
+        "compile": {
+          "lib/netcoreapp3.1/AWSSDK.S3.dll": {}
+        },
+        "runtime": {
+          "lib/netcoreapp3.1/AWSSDK.S3.dll": {}
+        }
+      },
       "Humanizer.Core/2.8.26": {
         "type": "package",
         "compile": {
@@ -332,6 +368,7 @@
           "lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll": {}
         },
         "build": {
+          "build/Microsoft.Extensions.Logging.Abstractions.targets": {},
           "buildTransitive/netcoreapp3.1/_._": {}
         }
       },
@@ -712,6 +749,71 @@
     }
   },
   "libraries": {
+    "AWSSDK.Core/3.7.12.2": {
+      "sha512": "P0VKY4Y3/UWaj7Spn/q/A2utEu5NMuJ7tHWLAB7rcTubsPR7LCuIzBlIypSUgDyS4OWnFxwB1hBHF2iklAR0KA==",
+      "type": "package",
+      "path": "awssdk.core/3.7.12.2",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "awssdk.core.3.7.12.2.nupkg.sha512",
+        "awssdk.core.nuspec",
+        "lib/net35/AWSSDK.Core.dll",
+        "lib/net35/AWSSDK.Core.pdb",
+        "lib/net35/AWSSDK.Core.xml",
+        "lib/net45/AWSSDK.Core.dll",
+        "lib/net45/AWSSDK.Core.pdb",
+        "lib/net45/AWSSDK.Core.xml",
+        "lib/netcoreapp3.1/AWSSDK.Core.dll",
+        "lib/netcoreapp3.1/AWSSDK.Core.pdb",
+        "lib/netcoreapp3.1/AWSSDK.Core.xml",
+        "lib/netstandard2.0/AWSSDK.Core.dll",
+        "lib/netstandard2.0/AWSSDK.Core.pdb",
+        "lib/netstandard2.0/AWSSDK.Core.xml",
+        "tools/account-management.ps1"
+      ]
+    },
+    "AWSSDK.Extensions.NETCore.Setup/3.7.2": {
+      "sha512": "iFjbEnVB0f6Hr8L3EfdelHG7zxVQrOmeP9UIrX3IODR1eTsrqVrmq0mazdIr0GZK1YG2/DZiVt6tNyV1bayndw==",
+      "type": "package",
+      "path": "awssdk.extensions.netcore.setup/3.7.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "awssdk.extensions.netcore.setup.3.7.2.nupkg.sha512",
+        "awssdk.extensions.netcore.setup.nuspec",
+        "lib/netstandard2.0/AWSSDK.Extensions.NETCore.Setup.dll",
+        "lib/netstandard2.0/AWSSDK.Extensions.NETCore.Setup.pdb"
+      ]
+    },
+    "AWSSDK.S3/3.7.9.18": {
+      "sha512": "UTvTbYUT8ucNvKgtPXAIDsQ132kfQK088oRjoh1pmsBuHBjql4ojCSEA5jwAmxrs0V+tlVPCRXkL+TkXARU+TQ==",
+      "type": "package",
+      "path": "awssdk.s3/3.7.9.18",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "analyzers/dotnet/cs/AWSSDK.S3.CodeAnalysis.dll",
+        "awssdk.s3.3.7.9.18.nupkg.sha512",
+        "awssdk.s3.nuspec",
+        "lib/net35/AWSSDK.S3.dll",
+        "lib/net35/AWSSDK.S3.pdb",
+        "lib/net35/AWSSDK.S3.xml",
+        "lib/net45/AWSSDK.S3.dll",
+        "lib/net45/AWSSDK.S3.pdb",
+        "lib/net45/AWSSDK.S3.xml",
+        "lib/netcoreapp3.1/AWSSDK.S3.dll",
+        "lib/netcoreapp3.1/AWSSDK.S3.pdb",
+        "lib/netcoreapp3.1/AWSSDK.S3.xml",
+        "lib/netstandard2.0/AWSSDK.S3.dll",
+        "lib/netstandard2.0/AWSSDK.S3.pdb",
+        "lib/netstandard2.0/AWSSDK.S3.xml",
+        "tools/install.ps1",
+        "tools/uninstall.ps1"
+      ]
+    },
     "Humanizer.Core/2.8.26": {
       "sha512": "OiKusGL20vby4uDEswj2IgkdchC1yQ6rwbIkZDVBPIR6al2b7n3pC91elBul9q33KaBgRKhbZH3+2Ur4fnWx2A==",
       "type": "package",
@@ -2049,6 +2151,8 @@
   },
   "projectFileDependencyGroups": {
     "net6.0": [
+      "AWSSDK.Extensions.NETCore.Setup >= 3.7.2",
+      "AWSSDK.S3 >= 3.7.9.18",
       "Microsoft.AspNetCore.Authentication.JwtBearer >= 6.0.5",
       "Microsoft.AspNetCore.Identity.EntityFrameworkCore >= 6.0.5",
       "Microsoft.EntityFrameworkCore.SqlServer >= 6.0.5",
@@ -2102,6 +2206,14 @@
       "net6.0": {
         "targetAlias": "net6.0",
         "dependencies": {
+          "AWSSDK.Extensions.NETCore.Setup": {
+            "target": "Package",
+            "version": "[3.7.2, )"
+          },
+          "AWSSDK.S3": {
+            "target": "Package",
+            "version": "[3.7.9.18, )"
+          },
           "Microsoft.AspNetCore.Authentication.JwtBearer": {
             "target": "Package",
             "version": "[6.0.5, )"

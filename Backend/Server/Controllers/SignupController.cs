@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using Amazon.S3;
 
 namespace Server.Controllers
 {
@@ -14,13 +15,16 @@ namespace Server.Controllers
     {
         private readonly UserManager<UserModel> _userManager;
         private readonly IConfiguration _configuration;
+        private readonly IAmazonS3 _s3Client;
 
         public SignupController(
             UserManager<UserModel> userManager,
-            IConfiguration configuration)
-        {
+            IConfiguration configuration,
+            IAmazonS3 s3Client)
+        { 
             _userManager = userManager;
             _configuration = configuration;
+            _s3Client = s3Client;
         }
 
         [HttpPost]
@@ -42,6 +46,11 @@ namespace Server.Controllers
             var result = await _userManager.CreateAsync(user, model.Password);
             if (!result.Succeeded)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = result.ToString() });
+
+            user.S3bucket = user.Id;
+            if (!await BucketOperator.CreateBucketAsync(user.S3bucket, _s3Client))
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating S3 bucket" });
+
 
             TokenModel tokens;
             try

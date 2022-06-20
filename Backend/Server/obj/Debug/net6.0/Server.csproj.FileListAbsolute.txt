@@ -60,3 +60,6 @@ C:\Users\User\Desktop\Webapp_Practice_Linkup\Backend\Server\obj\Debug\net6.0\ref
 C:\Users\User\Desktop\Webapp_Practice_Linkup\Backend\Server\obj\Debug\net6.0\Server.pdb
 C:\Users\User\Desktop\Webapp_Practice_Linkup\Backend\Server\obj\Debug\net6.0\Server.genruntimeconfig.cache
 C:\Users\User\Desktop\Webapp_Practice_Linkup\Backend\Server\obj\Debug\net6.0\ref\Server.dll
+C:\Users\User\Desktop\Webapp_Practice_Linkup\Backend\Server\bin\Debug\net6.0\AWSSDK.Core.dll
+C:\Users\User\Desktop\Webapp_Practice_Linkup\Backend\Server\bin\Debug\net6.0\AWSSDK.Extensions.NETCore.Setup.dll
+C:\Users\User\Desktop\Webapp_Practice_Linkup\Backend\Server\bin\Debug\net6.0\AWSSDK.S3.dll
