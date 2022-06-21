@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Server.Models;
 using Server.Operators;
 using Amazon.S3;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -15,6 +16,13 @@ builder.Services.AddDbContext<AppDbContext>(config =>
 {
     config.UseSqlServer(configuration.GetConnectionString("ConnectionString"));
 });
+
+/*
+builder.Services.AddMvc().AddJsonOptions(o =>
+{
+    o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+});
+*/
 
 builder.Services.AddIdentityCore<UserModel>(options =>
 {

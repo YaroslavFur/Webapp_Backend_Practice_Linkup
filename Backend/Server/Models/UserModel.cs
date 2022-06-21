@@ -7,6 +7,7 @@ namespace Server.Models
         public string? Name { get; set; }
         public string? Surname { get; set; }
         public string? S3bucket { get; set; }
+        public List<OrderModel>? Orders { get; set; }
         public string? RefreshToken { get; set; }
 
     }

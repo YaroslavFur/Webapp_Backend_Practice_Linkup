@@ -47,7 +47,7 @@ namespace Server.Controllers
         }
 
         [Route("updateinfo")]
-        [HttpPost]
+        [HttpPut]
         public async Task<ActionResult> UpdateInfo([FromBody] UpdateUserInfoModel model)
         {
             UserModel? thisUser;
@@ -91,7 +91,7 @@ namespace Server.Controllers
         }
 
         [Route("updateavatar")]
-        [HttpPost]
+        [HttpPut]
         public async Task<ActionResult> UpdateAvatar([FromForm] IFormFile picture)
         {
             UserModel? thisUser;
