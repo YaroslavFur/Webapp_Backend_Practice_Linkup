@@ -1,9 +1,11 @@
 ﻿using Amazon.S3;
+using Amazon.S3.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Server.Data;
 using Server.Models;
+using Server.Operators;
 
 namespace Server.Controllers
 {
@@ -25,12 +27,16 @@ namespace Server.Controllers
 
         [Route("createtag")]
         [HttpPost]
-        public ActionResult CreateTag([FromBody] TagModel model)
+        public async Task<ActionResult> CreateTag([FromBody] TagModel model)
         {
             var tagExists = _db.Tags.FirstOrDefault(tag => tag.Name == model.Name);
             if (tagExists != null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag {model.Name} already exists" });
-            
+
+            model.S3bucket = $"tag{Guid.NewGuid().ToString()}";
+            if (!await BucketOperator.CreateBucketAsync(model.S3bucket, _s3Client))
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating S3 bucket" });
+
             _db.Tags.Add(model);
             _db.SaveChanges();
 
@@ -39,18 +45,31 @@ namespace Server.Controllers
 
         [Route("gettag/{id}")]
         [HttpGet]
-        public ActionResult GetTag(int id)
+        public async Task<ActionResult> GetTag(int id)
         {
             var tagExists = _db.Tags.FirstOrDefault(tag => tag.Id == id);
-            if (tagExists != null)
+            if (tagExists == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag with Id = {id} does not exist" });
+            if (tagExists.S3bucket == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag doesn't have bucket" });
+            try
             {
+                var s3Objects = await BucketOperator.GetObjectsFromBucket(tagExists.S3bucket, "tagpicture", _s3Client);
                 return StatusCode(StatusCodes.Status200OK, new
                 {
                     Status = "Success",
-                    Tag = tagExists
+                    Tag = new
+                    {
+                        Id = tagExists.Id,
+                        Name = tagExists.Name,
+                        Picture = s3Objects
+                    }
                 });
             }
-            return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag with Id = {id} does not exist" });
+            catch
+            {
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Can't load picture" });
+            }            
         }
 
         [Route("updatetag/{id}")]
@@ -60,9 +79,7 @@ namespace Server.Controllers
             var tagExists = _db.Tags.FirstOrDefault(tag => tag.Id == id);
             if (tagExists != null)
             {
-                tagExists = model;
-
-                // change picture of tag for exmpl
+                tagExists.Name = model.Name;
 
                 _db.SaveChanges();
                 return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
@@ -73,26 +90,83 @@ namespace Server.Controllers
 
         [Route("deletetag/{id}")]
         [HttpDelete]
-        public ActionResult DeleteTag(int id)
+        public async Task<ActionResult> DeleteTag(int id)
         {
             var tagExists = _db.Tags.FirstOrDefault(tag => tag.Id == id);
             if (tagExists != null)
             {
+                var bucketExists = await _s3Client.DoesS3BucketExistAsync(tagExists.S3bucket);
+                if (bucketExists)
+                {
+                    await _s3Client.DeleteObjectAsync(tagExists.S3bucket, "tagpicture");
+                    await _s3Client.DeleteBucketAsync(tagExists.S3bucket);
+                }
+
                 _db.Tags.Remove(tagExists);
                 _db.SaveChanges();
                 return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
             }
-
             return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag with Id = {id} does not exist" });
         }
 
         [Route("getalltags")]
         [HttpGet]
-        public ActionResult GetAllTags()
+        public async Task<ActionResult> GetAllTags()
         {
             var allTags = _db.Tags.ToArray();
+            var resultTags = new List<object>();
+            foreach (var tag in allTags)
+            {
+                IEnumerable<S3ObjectDtoModel>? s3Objects;
+                if (tag.S3bucket == null)
+                    s3Objects = null;
+                else
+                {
+                    try
+                    {
+                        s3Objects = await BucketOperator.GetObjectsFromBucket(tag.S3bucket, "tagpicture", _s3Client);
+                        
+                    }
+                    catch
+                    {
+                        return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Can't load picture in tag with id = {tag.Id}" });
+                    }
+                }
+                resultTags.Add(new
+                {
+                    id = tag.Id,
+                    name = tag.Name,
+                    picture = s3Objects
+                });
+            }
 
-            return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Tags = allTags });
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Tags = resultTags });
+        }
+
+        [Route("updatetagpicture/{id}")]
+        [HttpPut]
+        public async Task<ActionResult> UpdateTagPicture([FromForm] IFormFile picture, int id)
+        {
+            var tagExists = _db.Tags.FirstOrDefault(tag => tag.Id == id);
+            if (tagExists != null)
+            {
+                var bucketExists = await _s3Client.DoesS3BucketExistAsync(tagExists.S3bucket);
+                if (!bucketExists)
+                    return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket does not exist" });
+
+                var request = new PutObjectRequest()
+                {
+                    BucketName = tagExists.S3bucket,
+                    Key = "tagpicture",
+                    InputStream = picture.OpenReadStream()
+                };
+                request.Metadata.Add("Content-Type", picture.ContentType);
+                await _s3Client.PutObjectAsync(request);
+
+                _db.SaveChanges();
+                return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "TagPicture updated successfully" });
+            }
+            return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag with Id = {id} does not exist" });
         }
     }
 }

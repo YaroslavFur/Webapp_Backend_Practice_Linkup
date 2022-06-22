@@ -20,8 +20,8 @@ namespace Server.Controllers
         private readonly UserManager<UserModel> _userManager;
         private readonly IAmazonS3 _s3Client;
 
-        public UserController(AppDbContext db, 
-            UserManager<UserModel> userManager, 
+        public UserController(AppDbContext db,
+            UserManager<UserModel> userManager,
             IAmazonS3 s3Client)
         {
             _httpContextAccessor = new();
@@ -38,7 +38,8 @@ namespace Server.Controllers
             if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
 
-            return StatusCode(StatusCodes.Status200OK, new {
+            return StatusCode(StatusCodes.Status200OK, new
+            {
                 Status = "Success",
                 Email = thisUser.UserName,
                 Name = thisUser.Name,
@@ -60,7 +61,7 @@ namespace Server.Controllers
                 thisUser.UserName = model.Email;
                 thisUser.Surname = model.Surname;
                 thisUser.Name = model.Name;
-                
+
                 _db.SaveChanges();
                 return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
             }
@@ -69,7 +70,7 @@ namespace Server.Controllers
 
         [Route("getavatar")]
         [HttpGet]
-        public async Task<ActionResult> GetAvatarAsync()
+        public async Task<ActionResult> GetAvatar()
         {
             UserModel? thisUser;
             if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
@@ -78,16 +79,18 @@ namespace Server.Controllers
             var bucketExists = await _s3Client.DoesS3BucketExistAsync(thisUser.S3bucket);
             if (!bucketExists)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket does not exist" });
-            GetObjectResponse s3Object;
+
             try
             {
-                s3Object = await _s3Client.GetObjectAsync(thisUser.S3bucket, "avatar.png");
+                if (thisUser.S3bucket == null)
+                    throw new Exception("Bucket not exist");
+                IEnumerable<S3ObjectDtoModel> s3Object = await BucketOperator.GetObjectsFromBucket(thisUser.S3bucket, "avatar", _s3Client);
+                return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Url = s3Object });
             }
             catch
             {
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Avatar not found" });
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Avatar loading error" });
             }
-            return File(s3Object.ResponseStream, s3Object.Headers.ContentType);
         }
 
         [Route("updateavatar")]
@@ -105,12 +108,32 @@ namespace Server.Controllers
             var request = new PutObjectRequest()
             {
                 BucketName = thisUser.S3bucket,
-                Key = "avatar.png",
+                Key = "avatar",
                 InputStream = picture.OpenReadStream()
             };
             request.Metadata.Add("Content-Type", picture.ContentType);
             await _s3Client.PutObjectAsync(request);
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "Avatar updated successfully" });
+        }
+
+        [Route("deleteuser")]
+        [HttpDelete]
+        public async Task<ActionResult> DeleteUser()
+        {
+            UserModel? thisUser;
+            if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
+
+            var bucketExists = await _s3Client.DoesS3BucketExistAsync(thisUser.S3bucket);
+            if (bucketExists)
+            {
+                await _s3Client.DeleteObjectAsync(thisUser.S3bucket, "avatar");
+                await _s3Client.DeleteBucketAsync(thisUser.S3bucket);
+            }
+
+            _db.Users.Remove(thisUser);
+            _db.SaveChanges();
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "User deleted" });
         }
     }
 }

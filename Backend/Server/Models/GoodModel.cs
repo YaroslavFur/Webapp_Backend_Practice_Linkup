@@ -12,7 +12,9 @@ namespace Server.Models
 
         [Required(ErrorMessage = "Price is required")]
         [Column(TypeName="money")]
-        public Decimal? Price { get; set; }
+        public int? Price { get; set; }
+
+        public string? S3bucket { get; set; }
 
         public List<OrderModel> Orders { get; set; } = new List<OrderModel>();
         public List<TagModel> Tags { get; set; } = new List<TagModel>();

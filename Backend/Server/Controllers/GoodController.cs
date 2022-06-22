@@ -66,8 +66,6 @@ namespace Server.Controllers
                 goodExists.Name = model.Name;
                 goodExists.Price = model.Price;
 
-                // change picture in bucket
-
                 _db.SaveChanges();
                 return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
             }
@@ -115,8 +113,8 @@ namespace Server.Controllers
         }
 
         [Route("getgoods")]
-        [HttpGet]
-        public ActionResult GetGoods(GetGoodsProperties properties)
+        [HttpPost]
+        public ActionResult GetGoods([FromBody] GetGoodsProperties properties)
         {
             IQueryable<GoodModel> query = _db.Goods;
             if (properties.idOfPreviousGood > 0)
@@ -127,7 +125,7 @@ namespace Server.Controllers
             if (properties.category != 0)
             {
                 query = query
-                    .Where(good => good.Tags.Any(tag => tag.Id == properties.category));          // filter by category 
+                    .Where(good => good.Tags.Any(tag => tag.Id == properties.category));            // filter by category 
             }
             if (properties.nameFilter != "")
             {
@@ -155,7 +153,6 @@ namespace Server.Controllers
         public int numOfGoodsToGet { get; set; }
         [Required(ErrorMessage = "IdOfPreviousGood is required")]
         public int idOfPreviousGood { get; set; }
-        //[Required(ErrorMessage = "Category is required")]
         public int category { get; set; }
         public string nameFilter { get; set; }
     }

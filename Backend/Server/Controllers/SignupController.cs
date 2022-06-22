@@ -43,14 +43,13 @@ namespace Server.Controllers
 
             UserModel user = UserOperator.CreateUser(model);
 
-            var result = await _userManager.CreateAsync(user, model.Password);
-            if (!result.Succeeded)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = result.ToString() });
-
-            user.S3bucket = user.Id;
+            user.S3bucket = $"user{user.Id}";
             if (!await BucketOperator.CreateBucketAsync(user.S3bucket, _s3Client))
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating S3 bucket" });
 
+            var result = await _userManager.CreateAsync(user, model.Password);
+            if (!result.Succeeded)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = result.ToString() });
 
             TokenModel tokens;
             try

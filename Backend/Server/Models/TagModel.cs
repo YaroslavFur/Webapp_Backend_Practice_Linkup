@@ -9,6 +9,8 @@ namespace Server.Models
         [Required(ErrorMessage = "Name is required")]
         public string? Name { get; set; }
 
+        public string? S3bucket { get; set; }
+
         public List<GoodModel> Goods { get; set; } = new List<GoodModel>();
     }
 }
