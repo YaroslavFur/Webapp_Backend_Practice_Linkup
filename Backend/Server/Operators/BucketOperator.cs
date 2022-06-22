@@ -15,7 +15,8 @@ namespace Server.Operators
             return true;
         }
 
-        public static async Task<IEnumerable<S3ObjectDtoModel>> GetObjectsFromBucket(string bucketName, string key, IAmazonS3 s3Client)
+        public static async Task<IEnumerable<S3ObjectDtoModel>> GetObjectsFromBucket(
+            string bucketName, string key, IAmazonS3 s3Client, IConfiguration configuration)
         {
             var bucketExists = await s3Client.DoesS3BucketExistAsync(bucketName);
             if (!bucketExists)
@@ -27,13 +28,16 @@ namespace Server.Operators
                 Prefix = key
             };
             var result = await s3Client.ListObjectsV2Async(request);
+
+            _ = long.TryParse(configuration["AWS:LinkValidityInSeconds"], out long linkValidityInSeconds);
+
             var s3Object = result.S3Objects.Select(s =>
             {
                 var urlRequest = new GetPreSignedUrlRequest()
                 {
                     BucketName = bucketName,
                     Key = s.Key,
-                    Expires = DateTime.UtcNow.AddSeconds(60)
+                    Expires = DateTime.UtcNow.AddSeconds(linkValidityInSeconds)
                 };
                 return new S3ObjectDtoModel()
                 {

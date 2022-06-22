@@ -19,15 +19,17 @@ namespace Server.Controllers
         private readonly AppDbContext _db;
         private readonly UserManager<UserModel> _userManager;
         private readonly IAmazonS3 _s3Client;
+        private readonly IConfiguration _configuration;
 
         public UserController(AppDbContext db,
             UserManager<UserModel> userManager,
-            IAmazonS3 s3Client)
+            IAmazonS3 s3Client, IConfiguration configuration)
         {
             _httpContextAccessor = new();
             _db = db;
             _userManager = userManager;
             _s3Client = s3Client;
+            _configuration = configuration;
         }
 
         [Route("getinfo")]
@@ -84,7 +86,7 @@ namespace Server.Controllers
             {
                 if (thisUser.S3bucket == null)
                     throw new Exception("Bucket not exist");
-                IEnumerable<S3ObjectDtoModel> s3Object = await BucketOperator.GetObjectsFromBucket(thisUser.S3bucket, "avatar", _s3Client);
+                IEnumerable<S3ObjectDtoModel> s3Object = await BucketOperator.GetObjectsFromBucket(thisUser.S3bucket, "avatar", _s3Client, _configuration);
                 return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Url = s3Object });
             }
             catch

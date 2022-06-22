@@ -16,13 +16,15 @@ namespace Server.Controllers
         private readonly HttpContextAccessor _httpContextAccessor;
         private readonly AppDbContext _db;
         private readonly IAmazonS3 _s3Client;
+        private readonly IConfiguration _configuration;
 
         public TagController(AppDbContext db,
-            IAmazonS3 s3Client)
+            IAmazonS3 s3Client, IConfiguration configuration)
         {
             _httpContextAccessor = new();
             _db = db;
             _s3Client = s3Client;
+            _configuration = configuration;
         }
 
         [Route("createtag")]
@@ -54,7 +56,7 @@ namespace Server.Controllers
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag doesn't have bucket" });
             try
             {
-                var s3Objects = await BucketOperator.GetObjectsFromBucket(tagExists.S3bucket, "tagpicture", _s3Client);
+                var s3Objects = await BucketOperator.GetObjectsFromBucket(tagExists.S3bucket, "tagpicture", _s3Client, _configuration);
                 return StatusCode(StatusCodes.Status200OK, new
                 {
                     Status = "Success",
@@ -114,30 +116,14 @@ namespace Server.Controllers
         public async Task<ActionResult> GetAllTags()
         {
             var allTags = _db.Tags.ToArray();
-            var resultTags = new List<object>();
-            foreach (var tag in allTags)
+            List<object> resultTags;
+            try
             {
-                IEnumerable<S3ObjectDtoModel>? s3Objects;
-                if (tag.S3bucket == null)
-                    s3Objects = null;
-                else
-                {
-                    try
-                    {
-                        s3Objects = await BucketOperator.GetObjectsFromBucket(tag.S3bucket, "tagpicture", _s3Client);
-                        
-                    }
-                    catch
-                    {
-                        return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Can't load picture in tag with id = {tag.Id}" });
-                    }
-                }
-                resultTags.Add(new
-                {
-                    id = tag.Id,
-                    name = tag.Name,
-                    picture = s3Objects
-                });
+                resultTags = await TagsToJsonAsync(allTags, _s3Client, _configuration);
+            }
+            catch(Exception exception)
+            {
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message});
             }
 
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Tags = resultTags });
@@ -167,6 +153,35 @@ namespace Server.Controllers
                 return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "TagPicture updated successfully" });
             }
             return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag with Id = {id} does not exist" });
+        }
+
+        public static async Task<List<object>> TagsToJsonAsync(IEnumerable<TagModel> tags, IAmazonS3 s3Client, IConfiguration configuration)
+        {
+            List<object> resultTags = new();
+            foreach (var tag in tags)
+            {
+                IEnumerable<S3ObjectDtoModel>? s3Objects;
+                if (tag.S3bucket == null)
+                    s3Objects = null;
+                else
+                {
+                    try
+                    {
+                        s3Objects = await BucketOperator.GetObjectsFromBucket(tag.S3bucket, "tagpicture", s3Client, configuration);
+                    }
+                    catch
+                    {
+                        throw new Exception($"Can't load picture in tag with id = {tag.Id}");
+                    }
+                }
+                resultTags.Add(new
+                {
+                    id = tag.Id,
+                    name = tag.Name,
+                    picture = s3Objects
+                });
+            }
+            return resultTags;
         }
     }
 }
