@@ -92,12 +92,12 @@ namespace Server.Controllers
 
         [Route("setgoodtags/{id}")]
         [HttpPut]
-        public ActionResult SetGoodTags([FromBody] TagNames tagsProvided, int id)
+        public ActionResult SetGoodTags([FromBody] TagIds tagsProvided, int id)
         {
             var goodExists = _db.Goods.Include(good => good.Tags).FirstOrDefault(good => good.Id == id);
             if (goodExists != null)
             {
-                var tags = _db.Tags.Where(tag => tag.Name != null && tagsProvided.tagNames.Contains(tag.Name));
+                var tags = _db.Tags.Where(tag => tagsProvided.tagIds.Contains(tag.Id));
                 if (!tags.Any())
                     return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"No tags with these names found" });
 
@@ -124,10 +124,10 @@ namespace Server.Controllers
                 query = query
                     .Where(good => good.Id > properties.idOfPreviousGood);                          // skip previous ids
             }
-            if (properties.category != "")
+            if (properties.category != 0)
             {
                 query = query
-                    .Where(good => good.Tags.Any(tag => tag.Name == properties.category));          // filter by category 
+                    .Where(good => good.Tags.Any(tag => tag.Id == properties.category));          // filter by category 
             }
             if (properties.nameFilter != "")
             {
@@ -143,10 +143,10 @@ namespace Server.Controllers
         }
     }
 
-    public struct TagNames
+    public struct TagIds
     {
-        [Required(ErrorMessage = "TagNames is required")]
-        public List<string> tagNames { get; set; }
+        [Required(ErrorMessage = "TagIds is required")]
+        public List<int> tagIds { get; set; }
     }
 
     public struct GetGoodsProperties
@@ -155,7 +155,8 @@ namespace Server.Controllers
         public int numOfGoodsToGet { get; set; }
         [Required(ErrorMessage = "IdOfPreviousGood is required")]
         public int idOfPreviousGood { get; set; }
-        public string category { get; set; }
+        //[Required(ErrorMessage = "Category is required")]
+        public int category { get; set; }
         public string nameFilter { get; set; }
     }
 }
