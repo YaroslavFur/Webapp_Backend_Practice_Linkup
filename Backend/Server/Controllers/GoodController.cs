@@ -199,21 +199,18 @@ namespace Server.Controllers
             var goodExists = _db.Goods.FirstOrDefault(good => good.Id == id);
             if (goodExists == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
-           
-            var bucketExists = await _s3Client.DoesS3BucketExistAsync(goodExists.S3bucket);
-            if (!bucketExists)
+            if (goodExists.S3bucket == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket does not exist" });
 
-            var request = new PutObjectRequest()
+            try
             {
-                BucketName = goodExists.S3bucket,
-                Key = "goodpicture",
-                InputStream = picture.OpenReadStream()
-            };
-            request.Metadata.Add("Content-Type", picture.ContentType);
-            await _s3Client.PutObjectAsync(request);
+                await BucketOperator.UpdateFileInBucket(goodExists.S3bucket, "goodpicture", picture, _s3Client);
+            }
+            catch (Exception exception)
+            {
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message });
+            }
 
-            _db.SaveChanges();
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "GoodPicture updated successfully" });
         }
 

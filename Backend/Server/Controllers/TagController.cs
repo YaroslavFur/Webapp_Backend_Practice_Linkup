@@ -134,25 +134,21 @@ namespace Server.Controllers
         public async Task<ActionResult> UpdateTagPicture([FromForm] IFormFile picture, int id)
         {
             var tagExists = _db.Tags.FirstOrDefault(tag => tag.Id == id);
-            if (tagExists != null)
+            if (tagExists == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag with Id = {id} does not exist" });
+            if (tagExists.S3bucket == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket does not exist" });
+
+            try
             {
-                var bucketExists = await _s3Client.DoesS3BucketExistAsync(tagExists.S3bucket);
-                if (!bucketExists)
-                    return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket does not exist" });
-
-                var request = new PutObjectRequest()
-                {
-                    BucketName = tagExists.S3bucket,
-                    Key = "tagpicture",
-                    InputStream = picture.OpenReadStream()
-                };
-                request.Metadata.Add("Content-Type", picture.ContentType);
-                await _s3Client.PutObjectAsync(request);
-
-                _db.SaveChanges();
-                return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "TagPicture updated successfully" });
+                await BucketOperator.UpdateFileInBucket(tagExists.S3bucket, "tagpicture", picture, _s3Client);
             }
-            return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag with Id = {id} does not exist" });
+            catch(Exception exception)
+            {
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message });
+            }
+
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "TagPicture updated successfully" });
         }
 
         public static async Task<List<object>> TagsToJsonAsync(IEnumerable<TagModel> tags, IAmazonS3 s3Client, IConfiguration configuration)

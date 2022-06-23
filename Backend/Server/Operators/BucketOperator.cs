@@ -8,8 +8,7 @@ namespace Server.Operators
     {
         public static async Task<bool> CreateBucketAsync(string bucketName, IAmazonS3 s3Client)
         {
-            var bucketExists = await s3Client.DoesS3BucketExistAsync(bucketName);
-            if (bucketExists)
+            if (await s3Client.DoesS3BucketExistAsync(bucketName))
                 return false;
             await s3Client.PutBucketAsync(bucketName);
             return true;
@@ -18,8 +17,7 @@ namespace Server.Operators
         public static async Task<IEnumerable<S3ObjectDtoModel>> GetObjectsFromBucket(
             string bucketName, string key, IAmazonS3 s3Client, IConfiguration configuration)
         {
-            var bucketExists = await s3Client.DoesS3BucketExistAsync(bucketName);
-            if (!bucketExists)
+            if (!await s3Client.DoesS3BucketExistAsync(bucketName))
                 throw new Exception("Bucket doesn't exist");
 
             var request = new ListObjectsV2Request()
@@ -46,6 +44,23 @@ namespace Server.Operators
                 };
             });
             return s3Object;
+        }
+
+        public static async Task<bool> UpdateFileInBucket(string bucketName, string key, IFormFile file, IAmazonS3 s3Client)
+        {
+            if (!await s3Client.DoesS3BucketExistAsync(bucketName))
+                throw new Exception("S3 bucket does not exist");
+
+            var request = new PutObjectRequest()
+            {
+                BucketName = bucketName,
+                Key = key,
+                InputStream = file.OpenReadStream()
+            };
+            request.Metadata.Add("Content-Type", file.ContentType);
+            await s3Client.PutObjectAsync(request);
+
+            return true;
         }
     }
 }

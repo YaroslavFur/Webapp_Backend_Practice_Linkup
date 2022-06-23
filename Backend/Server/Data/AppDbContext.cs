@@ -10,10 +10,11 @@ namespace Server.Data
         public DbSet<GoodModel> Goods { get; set; } = null!;
         public DbSet<OrderModel> Orders { get; set; } = null!;
         public DbSet<TagModel> Tags { get; set; } = null!;
+        public DbSet<BaseModel> Bases { get; set; } = null!;
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
-            Database.EnsureCreated();
+            Database.Migrate();
         }
         protected override void OnModelCreating(ModelBuilder builder)
         {
