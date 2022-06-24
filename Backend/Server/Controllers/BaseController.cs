@@ -27,15 +27,13 @@ namespace Server.Controllers
 
         [Route("createbase")]
         [HttpPost]
-        public async Task<ActionResult> CreateBase([FromBody] BaseModel model)
+        public ActionResult CreateBase([FromBody] BaseModel model)
         {
             var baseExists = _db.Bases.FirstOrDefault(Base => Base.Name == model.Name);
             if (baseExists != null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Base {model.Name} already exists" });
 
             model.S3bucket = $"base{Guid.NewGuid().ToString()}";
-            if (!await BucketOperator.CreateBucketAsync(model.S3bucket, _s3Client))
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating S3 bucket" });
 
             _db.Bases.Add(model);
             _db.SaveChanges();
@@ -51,10 +49,10 @@ namespace Server.Controllers
             if (baseExists == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Base with Id = {id} does not exist" });
             if (baseExists.S3bucket == null)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Base doesn't have bucket" });
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Base doesn't have bucket attached" });
             try
             {
-                var s3Objects = await BucketOperator.GetObjectsFromBucket(baseExists.S3bucket, "basepicture", _s3Client, _configuration);
+                var s3Objects = await BucketOperator.GetObjectsFromBucket(baseExists.S3bucket, _s3Client, _configuration);
                 return StatusCode(StatusCodes.Status200OK, new
                 {
                     Status = "Success",
@@ -78,15 +76,14 @@ namespace Server.Controllers
         public ActionResult UpdateBase([FromBody] BaseModel model, int id)
         {
             var baseExists = _db.Bases.FirstOrDefault(Base => Base.Id == id);
-            if (baseExists != null)
-            {
-                baseExists.Name = model.Name;
-                baseExists.Description = model.Description;
+            if (baseExists == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Base with Id = {id} does not exist" });
+            
+            baseExists.Name = model.Name;
+            baseExists.Description = model.Description;
 
-                _db.SaveChanges();
-                return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
-            }
-            return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Base with Id = {id} does not exist" });
+            _db.SaveChanges();
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
         }
 
 
@@ -95,20 +92,17 @@ namespace Server.Controllers
         public async Task<ActionResult> DeleteBase(int id)
         {
             var baseExists = _db.Bases.FirstOrDefault(Base => Base.Id == id);
-            if (baseExists != null)
-            {
-                var bucketExists = await _s3Client.DoesS3BucketExistAsync(baseExists.S3bucket);
-                if (bucketExists)
-                {
-                    await _s3Client.DeleteObjectAsync(baseExists.S3bucket, "basepicture");
-                    await _s3Client.DeleteBucketAsync(baseExists.S3bucket);
-                }
+            if (baseExists == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Base with Id = {id} does not exist" });
 
-                _db.Bases.Remove(baseExists);
-                _db.SaveChanges();
-                return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
+            if (baseExists.S3bucket != null)
+            {
+                await _s3Client.DeleteObjectAsync(_configuration["AWS:BucketName"], baseExists.S3bucket);
             }
-            return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Base with Id = {id} does not exist" });
+
+            _db.Bases.Remove(baseExists);
+            _db.SaveChanges();
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
         }
 
         [Route("getallbases")]
@@ -137,11 +131,11 @@ namespace Server.Controllers
             if (baseExists == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Base with Id = {id} does not exist" });
             if (baseExists.S3bucket == null)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket does not exist" });
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket not attached" });
 
             try
             {
-                await BucketOperator.UpdateFileInBucket(baseExists.S3bucket, "basepicture", picture, _s3Client);
+                await BucketOperator.UpdateFileInBucket(baseExists.S3bucket, picture, _s3Client, _configuration);
             }
             catch (Exception exception)
             {
@@ -163,7 +157,7 @@ namespace Server.Controllers
                 {
                     try
                     {
-                        s3Objects = await BucketOperator.GetObjectsFromBucket(Base.S3bucket, "basepicture", s3Client, configuration);
+                        s3Objects = await BucketOperator.GetObjectsFromBucket(Base.S3bucket, s3Client, configuration);
                     }
                     catch
                     {

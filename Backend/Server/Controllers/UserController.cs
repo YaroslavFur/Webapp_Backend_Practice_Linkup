@@ -77,21 +77,16 @@ namespace Server.Controllers
             UserModel? thisUser;
             if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
-
-            var bucketExists = await _s3Client.DoesS3BucketExistAsync(thisUser.S3bucket);
-            if (!bucketExists)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket does not exist" });
-
+            if (thisUser.S3bucket == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"User doesn't have bucket attached" });
             try
             {
-                if (thisUser.S3bucket == null)
-                    throw new Exception("Bucket not exist");
-                IEnumerable<S3ObjectDtoModel> s3Object = await BucketOperator.GetObjectsFromBucket(thisUser.S3bucket, "avatar", _s3Client, _configuration);
-                return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Url = s3Object });
+                var s3Objects = await BucketOperator.GetObjectsFromBucket(thisUser.S3bucket, _s3Client, _configuration);
+                return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Picture = s3Objects });
             }
             catch
             {
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Avatar loading error" });
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Can't load picture" });
             }
         }
 
@@ -102,19 +97,18 @@ namespace Server.Controllers
             UserModel? thisUser;
             if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
+            if (thisUser.S3bucket == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket not attached" });
 
-            var bucketExists = await _s3Client.DoesS3BucketExistAsync(thisUser.S3bucket);
-            if (!bucketExists)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket does not exist" });
-
-            var request = new PutObjectRequest()
+            try
             {
-                BucketName = thisUser.S3bucket,
-                Key = "avatar",
-                InputStream = picture.OpenReadStream()
-            };
-            request.Metadata.Add("Content-Type", picture.ContentType);
-            await _s3Client.PutObjectAsync(request);
+                await BucketOperator.UpdateFileInBucket(thisUser.S3bucket, picture, _s3Client, _configuration);
+            }
+            catch (Exception exception)
+            {
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message });
+            }
+
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "Avatar updated successfully" });
         }
 
@@ -126,11 +120,9 @@ namespace Server.Controllers
             if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
 
-            var bucketExists = await _s3Client.DoesS3BucketExistAsync(thisUser.S3bucket);
-            if (bucketExists)
+            if (thisUser.S3bucket != null)
             {
-                await _s3Client.DeleteObjectAsync(thisUser.S3bucket, "avatar");
-                await _s3Client.DeleteBucketAsync(thisUser.S3bucket);
+                await _s3Client.DeleteObjectAsync(_configuration["AWS:BucketName"], thisUser.S3bucket);
             }
 
             _db.Users.Remove(thisUser);

@@ -5,18 +5,13 @@ using Server.Models;
 namespace Server.Operators
 {
     public class BucketOperator
-    {
-        public static async Task<bool> CreateBucketAsync(string bucketName, IAmazonS3 s3Client)
-        {
-            if (await s3Client.DoesS3BucketExistAsync(bucketName))
-                return false;
-            await s3Client.PutBucketAsync(bucketName);
-            return true;
-        }
-
+    { 
         public static async Task<IEnumerable<S3ObjectDtoModel>> GetObjectsFromBucket(
-            string bucketName, string key, IAmazonS3 s3Client, IConfiguration configuration)
+            string key, IAmazonS3 s3Client, IConfiguration configuration)
         {
+            string bucketName = configuration["AWS:BucketName"];
+            _ = long.TryParse(configuration["AWS:LinkValidityInSeconds"], out long linkValidityInSeconds);
+
             if (!await s3Client.DoesS3BucketExistAsync(bucketName))
                 throw new Exception("Bucket doesn't exist");
 
@@ -27,7 +22,6 @@ namespace Server.Operators
             };
             var result = await s3Client.ListObjectsV2Async(request);
 
-            _ = long.TryParse(configuration["AWS:LinkValidityInSeconds"], out long linkValidityInSeconds);
 
             var s3Object = result.S3Objects.Select(s =>
             {
@@ -46,8 +40,11 @@ namespace Server.Operators
             return s3Object;
         }
 
-        public static async Task<bool> UpdateFileInBucket(string bucketName, string key, IFormFile file, IAmazonS3 s3Client)
+        public static async Task<bool> UpdateFileInBucket(
+            string key, IFormFile file, IAmazonS3 s3Client, IConfiguration configuration)
         {
+            string bucketName = configuration["AWS:BucketName"];
+
             if (!await s3Client.DoesS3BucketExistAsync(bucketName))
                 throw new Exception("S3 bucket does not exist");
 

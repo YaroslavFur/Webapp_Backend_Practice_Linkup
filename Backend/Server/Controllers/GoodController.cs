@@ -30,15 +30,13 @@ namespace Server.Controllers
 
         [Route("creategood")]
         [HttpPost]
-        public async Task<ActionResult> CreateGood([FromBody] GoodModel model)
+        public ActionResult CreateGood([FromBody] GoodModel model)
         {
             var goodExists = _db.Goods.FirstOrDefault(good => good.Name == model.Name);
             if (goodExists != null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good {model.Name} already exists" });
 
             model.S3bucket = $"good{Guid.NewGuid().ToString()}";
-            if (!await BucketOperator.CreateBucketAsync(model.S3bucket, _s3Client))
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating S3 bucket" });
 
             _db.Goods.Add(model);
             _db.SaveChanges();
@@ -54,10 +52,10 @@ namespace Server.Controllers
             if (goodExists == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
             if (goodExists.S3bucket == null)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good doesn't have bucket" });
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good doesn't have bucket attached" });
             try
             {
-                var s3Objects = await BucketOperator.GetObjectsFromBucket(goodExists.S3bucket, "goodpicture", _s3Client, _configuration);
+                var s3Objects = await BucketOperator.GetObjectsFromBucket(goodExists.S3bucket, _s3Client, _configuration);
                 return StatusCode(StatusCodes.Status200OK, new
                 {
                     Status = "Success",
@@ -81,15 +79,14 @@ namespace Server.Controllers
         public ActionResult UpdateGood([FromBody] GoodModel model, int id)
         {
             var goodExists = _db.Goods.FirstOrDefault(good => good.Id == id);
-            if (goodExists != null)
-            {
-                goodExists.Name = model.Name;
-                goodExists.Price = model.Price;
-
-                _db.SaveChanges();
-                return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
-            }
+            if (goodExists == null)
             return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
+            
+            goodExists.Name = model.Name;
+            goodExists.Price = model.Price;
+
+            _db.SaveChanges();
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
         }
 
 
@@ -98,21 +95,17 @@ namespace Server.Controllers
         public async Task<ActionResult> DeleteGood(int id)
         {
             var goodExists = _db.Goods.FirstOrDefault(good => good.Id == id);
-            if (goodExists != null)
-            {
-                var bucketExists = await _s3Client.DoesS3BucketExistAsync(goodExists.S3bucket);
-                if (bucketExists)
-                {
-                    await _s3Client.DeleteObjectAsync(goodExists.S3bucket, "goodpicture");
-                    // add here deleting more pictures later
-                    await _s3Client.DeleteBucketAsync(goodExists.S3bucket);
-                }
+            if (goodExists == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
 
-                _db.Goods.Remove(goodExists);
-                _db.SaveChanges();
-                return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
+            if (goodExists.S3bucket != null)
+            {
+                await _s3Client.DeleteObjectAsync(_configuration["AWS:BucketName"], goodExists.S3bucket);
             }
-            return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
+
+            _db.Goods.Remove(goodExists);
+            _db.SaveChanges();
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
         }
 
         [Route("setgoodtags/{id}")]
@@ -120,23 +113,22 @@ namespace Server.Controllers
         public ActionResult SetGoodTags([FromBody] TagIds tagsProvided, int id)
         {
             var goodExists = _db.Goods.Include(good => good.Tags).FirstOrDefault(good => good.Id == id);
-            if (goodExists != null)
-            {
-                var tags = _db.Tags.Where(tag => tagsProvided.tagIds.Contains(tag.Id));
-                if (!tags.Any())
-                    return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"No tags with these names found" });
+            if (goodExists == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
+            
+            var tags = _db.Tags.Where(tag => tagsProvided.tagIds.Contains(tag.Id));
+            if (!tags.Any())
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"No tags with these names found" });
 
-                if (goodExists.Tags != null)
-                    goodExists.Tags.Clear();
-                else
-                    goodExists.Tags = new List<TagModel>();
+            if (goodExists.Tags != null)
+                goodExists.Tags.Clear();
+            else
+                goodExists.Tags = new List<TagModel>();
                 
-                goodExists.Tags.AddRange(tags);
+            goodExists.Tags.AddRange(tags);
 
-                _db.SaveChanges();
-                return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
-            }
-            return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
+            _db.SaveChanges();
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
         }
 
         [Route("getgoods")]
@@ -197,14 +189,15 @@ namespace Server.Controllers
         public async Task<ActionResult> UpdateGoodPicture([FromForm] IFormFile picture, int id)
         {
             var goodExists = _db.Goods.FirstOrDefault(good => good.Id == id);
+
             if (goodExists == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
             if (goodExists.S3bucket == null)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket does not exist" });
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket not attached" });
 
             try
             {
-                await BucketOperator.UpdateFileInBucket(goodExists.S3bucket, "goodpicture", picture, _s3Client);
+                await BucketOperator.UpdateFileInBucket(goodExists.S3bucket, picture, _s3Client, _configuration);
             }
             catch (Exception exception)
             {
@@ -226,7 +219,7 @@ namespace Server.Controllers
                 {
                     try
                     {
-                        s3Objects = await BucketOperator.GetObjectsFromBucket(good.S3bucket, "goodpicture", s3Client, configuration);
+                        s3Objects = await BucketOperator.GetObjectsFromBucket(good.S3bucket, s3Client, configuration);
                     }
                     catch
                     {
