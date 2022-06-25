@@ -86,7 +86,6 @@ namespace Server.Controllers
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
         }
 
-
         [Route("deletebase/{id}")]
         [HttpDelete]
         public async Task<ActionResult> DeleteBase(int id)

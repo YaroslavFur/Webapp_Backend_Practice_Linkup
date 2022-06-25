@@ -17,13 +17,6 @@ builder.Services.AddDbContext<AppDbContext>(config =>
     config.UseSqlServer(configuration.GetConnectionString("ConnectionString"));
 });
 
-/*
-builder.Services.AddMvc().AddJsonOptions(o =>
-{
-    o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
-});
-*/
-
 builder.Services.AddIdentityCore<UserModel>(options =>
 {
     options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@!#$%&'*+-/=?^_`{|}~.\"(),:;<>@[\\] ";

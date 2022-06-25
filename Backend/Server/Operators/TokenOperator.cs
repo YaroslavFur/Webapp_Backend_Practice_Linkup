@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
+using Server.Data;
 using Server.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -9,22 +10,24 @@ namespace Server.Operators
 {
     public class TokenOperator
     {
-        public static async Task<TokenModel> GenerateAccessRefreshTokens(UserModel user, IConfiguration configuration, UserManager<UserModel> _userManager)
+        public static TokenModel GenerateAccessRefreshTokens(
+            SessionModel session, IConfiguration configuration, AppDbContext db, UserModel? user = null)
         {
-            var authClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Email, user.UserName),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            };
-
             _ = long.TryParse(configuration["JWT:AccessTokenValidityInSeconds"], out long tokenValidityInSeconds);
             _ = long.TryParse(configuration["JWT:RefreshTokenValidityInSeconds"], out long refreshTokenValidityInSeconds);
 
+            var authClaims = new List<Claim>();
+            if (user == null)
+                authClaims.Add(new Claim(ClaimTypes.Anonymous, session.Id.ToString()));
+            else
+                authClaims.Add(new Claim(ClaimTypes.Email, user.UserName));
+            authClaims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
+            
             var token = GenerateToken(authClaims, tokenValidityInSeconds, configuration);
             var refreshToken = GenerateToken(new List<Claim>(), refreshTokenValidityInSeconds, configuration);
 
-            user.RefreshToken = refreshToken;
-            await _userManager.UpdateAsync(user);
+            session.RefreshToken = refreshToken;
+            db.SaveChanges();
 
             return new TokenModel { AccessToken = token, RefreshToken = refreshToken };
         }
@@ -46,7 +49,6 @@ namespace Server.Operators
 
         public static ClaimsPrincipal ValidateToken(string token, bool validateLifetime, IConfiguration configuration)
         {
-
             TokenValidationParameters parameters = GetTokenValidationParameters(configuration);
             parameters.ValidateLifetime = validateLifetime;
 

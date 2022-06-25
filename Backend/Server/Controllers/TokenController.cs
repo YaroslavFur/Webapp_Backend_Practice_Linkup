@@ -8,25 +8,29 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Server.Data;
 
 namespace Server.Controllers
 {
+    [ApiController]
+    [Route("token")]
     public class TokenController : Controller
     {
         private readonly UserManager<UserModel> _userManager;
         private readonly IConfiguration _configuration;
+        private readonly AppDbContext _db;
 
         public TokenController(
-            UserManager<UserModel> userManager,
-            IConfiguration configuration)
+            UserManager<UserModel> userManager, IConfiguration configuration, AppDbContext db)
         {
             _userManager = userManager;
             _configuration = configuration;
+            _db = db;
         }
 
         [HttpPost]
         [Route("refreshtoken")]
-        public async Task<IActionResult> RefreshToken([FromBody] TokenModel tokenModel)
+        public IActionResult RefreshToken([FromBody] TokenModel tokenModel)
         {
             if (tokenModel is null || tokenModel.AccessToken == null || tokenModel.RefreshToken == null)
             {
@@ -36,43 +40,37 @@ namespace Server.Controllers
             string accessToken = tokenModel.AccessToken;
             string refreshToken = tokenModel.RefreshToken;
             ClaimsPrincipal accessTokenPrincipal;
-            string? email;
-            UserModel? user;
+            SessionModel thisSession;
+            UserModel? thisUser = null;
 
             try
             {
                 if ((accessTokenPrincipal = TokenOperator.ValidateToken(accessToken, false, _configuration)) == null)
                     throw new Exception();
-                email = accessTokenPrincipal.Claims.Where(claim => claim.Type.EndsWith("emailaddress")).First().Value;
-                user = await _userManager.FindByNameAsync(email);
-                if (user == null)
-                    throw new Exception();
             }
-            catch
-            {
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Invalid access token" });
-            }
+            catch 
+            { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Invalid access token" }); }
+
+            try
+            { thisSession = UserOperator.GetUserOrAnonymousUserByPrincipal(accessTokenPrincipal, _db, out thisUser); }
+            catch (Exception exception)
+            { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message }); }
 
             try
             {
-                TokenOperator.ValidateToken(refreshToken, true, _configuration);
-                if (refreshToken != user.RefreshToken)
+                bool checkRefreshTokenExpiration = thisUser == null ? false : true;         // if user anonymous - refresh token can't be expired
+                TokenOperator.ValidateToken(refreshToken, checkRefreshTokenExpiration, _configuration);
+                if (refreshToken != thisSession.RefreshToken)
                     throw new Exception();
             }
             catch
-            {
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Invalid refresh token" });
-            }
+            { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Invalid refresh token" }); }
 
             TokenModel tokens;
             try
-            {
-                tokens = await TokenOperator.GenerateAccessRefreshTokens(user, _configuration, _userManager);
-            }
+            { tokens = TokenOperator.GenerateAccessRefreshTokens(thisSession, _configuration, _db, thisUser); }
             catch
-            {
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating tokens" });
-            }
+            { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating tokens" }); }
 
             return StatusCode(StatusCodes.Status200OK, new
             {
@@ -85,26 +83,18 @@ namespace Server.Controllers
         [Authorize]
         [HttpPost]
         [Route("revoke")]
-        public async Task<IActionResult> Revoke()
+        public IActionResult Revoke()
         {
-            string thisUserEmail;
+            SessionModel thisSession;
             try
-            {
-                thisUserEmail = this.User.Claims.Where(claim => claim.Type.EndsWith("emailaddress")).First().Value;
-            }
-            catch
-            {
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
-            }
+            { thisSession = UserOperator.GetUserOrAnonymousUserByPrincipal(this.User, _db, out UserModel? thisUser); }
+            catch (Exception exception)
+            { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message }); }                
 
-            var userToRevoke = await _userManager.FindByNameAsync(thisUserEmail);
-            if (userToRevoke == null)
-                return StatusCode(StatusCodes.Status400BadRequest, new { Status = "Error", Message = "User " + thisUserEmail + " not found" });
+            thisSession.RefreshToken = null;
+            _db.SaveChanges();
 
-            userToRevoke.RefreshToken = null;
-            await _userManager.UpdateAsync(userToRevoke);
-
-            return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "User " + userToRevoke.Email + " revoked successfully" });
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "Token revoked successfully" });
         }
     }
 }

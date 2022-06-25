@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Server.Data;
 
@@ -11,9 +12,10 @@ using Server.Data;
 namespace Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20220624163859_AddSessions")]
+    partial class AddSessions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -255,7 +257,12 @@ namespace Server.Migrations
                     b.Property<string>("RefreshToken")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Sessions");
                 });
@@ -354,9 +361,6 @@ namespace Server.Migrations
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
-                    b.HasIndex("SessionId")
-                        .IsUnique();
-
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
@@ -441,15 +445,13 @@ namespace Server.Migrations
                     b.Navigation("Session");
                 });
 
-            modelBuilder.Entity("Server.Models.UserModel", b =>
+            modelBuilder.Entity("Server.Models.SessionModel", b =>
                 {
-                    b.HasOne("Server.Models.SessionModel", "Session")
-                        .WithOne("User")
-                        .HasForeignKey("Server.Models.UserModel", "SessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.HasOne("Server.Models.UserModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId");
 
-                    b.Navigation("Session");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Server.Models.GoodModel", b =>
@@ -460,8 +462,6 @@ namespace Server.Migrations
             modelBuilder.Entity("Server.Models.SessionModel", b =>
                 {
                     b.Navigation("Orders");
-
-                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }

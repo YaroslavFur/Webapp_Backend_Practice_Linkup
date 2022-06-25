@@ -11,6 +11,7 @@ namespace Server.Data
         public DbSet<OrderModel> Orders { get; set; } = null!;
         public DbSet<TagModel> Tags { get; set; } = null!;
         public DbSet<BaseModel> Bases { get; set; } = null!;
+        public DbSet<SessionModel> Sessions { get; set; } = null!;
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {

@@ -7,6 +7,7 @@ using Server.Operators;
 using Microsoft.AspNetCore.Identity;
 using Amazon.S3;
 using Amazon.S3.Model;
+using System.ComponentModel.DataAnnotations;
 
 namespace Server.Controllers
 {
@@ -36,9 +37,12 @@ namespace Server.Controllers
         [HttpGet]
         public ActionResult GetInfo()
         {
-            UserModel? thisUser;
-            if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
+            UserModel thisUser;
+            try
+            { thisUser = UserOperator.GetUserByPrincipal(this.User, _db); }
+            catch (Exception exception)
+            { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message }); }
+
 
             return StatusCode(StatusCodes.Status200OK, new
             {
@@ -53,9 +57,11 @@ namespace Server.Controllers
         [HttpPut]
         public async Task<ActionResult> UpdateInfo([FromBody] UpdateUserInfoModel model)
         {
-            UserModel? thisUser;
-            if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
+            UserModel thisUser;
+            try
+            { thisUser = UserOperator.GetUserByPrincipal(this.User, _db); }
+            catch (Exception exception)
+            { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message }); }
 
             var result = await _userManager.ChangePasswordAsync(thisUser, model.OldPassword, model.Password);
             if (result.Succeeded)
@@ -74,9 +80,12 @@ namespace Server.Controllers
         [HttpGet]
         public async Task<ActionResult> GetAvatar()
         {
-            UserModel? thisUser;
-            if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
+            UserModel thisUser;
+            try
+            { thisUser = UserOperator.GetUserByPrincipal(this.User, _db); }
+            catch (Exception exception)
+            { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message }); }
+
             if (thisUser.S3bucket == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"User doesn't have bucket attached" });
             try
@@ -94,9 +103,12 @@ namespace Server.Controllers
         [HttpPut]
         public async Task<ActionResult> UpdateAvatar([FromForm] IFormFile picture)
         {
-            UserModel? thisUser;
-            if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
+            UserModel thisUser;
+            try
+            { thisUser = UserOperator.GetUserByPrincipal(this.User, _db); }
+            catch (Exception exception)
+            { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message }); }
+
             if (thisUser.S3bucket == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket not attached" });
 
@@ -116,18 +128,28 @@ namespace Server.Controllers
         [HttpDelete]
         public async Task<ActionResult> DeleteUser()
         {
+            SessionModel thisSession;
             UserModel? thisUser;
-            if ((thisUser = UserOperator.GetUserByPrincipal(this.User, _db)) == null)
-                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Current user not found" });
+            try
+            { thisSession = UserOperator.GetUserOrAnonymousUserByPrincipal(this.User, _db, out thisUser); }
+            catch (Exception exception)
+            { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message }); }
 
-            if (thisUser.S3bucket != null)
+            if (thisUser != null && thisUser.S3bucket != null)
             {
                 await _s3Client.DeleteObjectAsync(_configuration["AWS:BucketName"], thisUser.S3bucket);
             }
 
-            _db.Users.Remove(thisUser);
+            _db.Sessions.Remove(thisSession);
             _db.SaveChanges();
+
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "User deleted" });
         }
+    }
+
+    public class UpdateUserInfoModel : SignupModel
+    {
+        [Required(ErrorMessage = "Old password is required")]
+        public string? OldPassword { get; set; }
     }
 }

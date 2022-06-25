@@ -64,9 +64,10 @@ namespace Server.Controllers
                         Id = goodExists.Id,
                         Name = goodExists.Name,
                         Price = goodExists.Price,
+                        Sold = _db.Orders.Where(order => order.GoodId == goodExists.Id).Select(order => order.Amount).Sum(),
                         Picture = s3Objects
                     }
-                });
+                }); ;
             }
             catch
             {
@@ -173,7 +174,7 @@ namespace Server.Controllers
             List<object> resultTags;
             try
             {
-                resultGoods = await GoodsToJsonAsync(filteredGoods, _s3Client, _configuration);
+                resultGoods = await GoodsToJsonAsync(filteredGoods, _db, _s3Client, _configuration);
                 resultTags = await TagController.TagsToJsonAsync(filteredTags, _s3Client, _configuration);
             }
             catch(Exception exception)
@@ -207,9 +208,10 @@ namespace Server.Controllers
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "GoodPicture updated successfully" });
         }
 
-        public static async Task<List<object>> GoodsToJsonAsync(IEnumerable<GoodModel> goods, IAmazonS3 s3Client, IConfiguration configuration)
+        public static async Task<List<object>> GoodsToJsonAsync(IEnumerable<GoodModel> goods, AppDbContext db, IAmazonS3 s3Client, IConfiguration configuration)
         {
             List<object> resultGoods = new();
+            var allOrders = db.Orders.ToArray();
             foreach (var good in goods)
             {
                 IEnumerable<S3ObjectDtoModel>? s3Objects;
@@ -231,6 +233,7 @@ namespace Server.Controllers
                     id = good.Id,
                     name = good.Name,
                     price = good.Price,
+                    sold = allOrders.Where(order => order.GoodId == good.Id).Select(order => order.Amount).Sum(),
                     picture = s3Objects
                 });
             }

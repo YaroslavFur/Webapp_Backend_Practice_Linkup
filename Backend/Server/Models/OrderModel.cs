@@ -10,8 +10,8 @@
 
         public GoodModel? Good { get; set; }
 
-        public string? UserId { get; set; }
+        public int? SessionId { get; set; }
 
-        public UserModel? User { get; set; }
+        public SessionModel? Session { get; set; }
     }
 }
