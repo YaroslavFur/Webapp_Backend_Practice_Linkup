@@ -22,21 +22,26 @@ namespace Server.Operators
             };
             var result = await s3Client.ListObjectsV2Async(request);
 
-
-            var s3Object = result.S3Objects.Select(s =>
+            IEnumerable<S3ObjectDtoModel> s3Object;
+            try
             {
-                var urlRequest = new GetPreSignedUrlRequest()
+                s3Object = result.S3Objects.Select(s =>
                 {
-                    BucketName = bucketName,
-                    Key = s.Key,
-                    Expires = DateTime.UtcNow.AddSeconds(linkValidityInSeconds)
-                };
-                return new S3ObjectDtoModel()
-                {
-                    Name = s.Key.ToString(),
-                    PresignedUrl = s3Client.GetPreSignedURL(urlRequest),
-                };
-            });
+                    var urlRequest = new GetPreSignedUrlRequest()
+                    {
+                        BucketName = bucketName,
+                        Key = s.Key,
+                        Expires = DateTime.UtcNow.AddSeconds(linkValidityInSeconds)
+                    };
+                    return new S3ObjectDtoModel()
+                    {
+                        Name = s.Key.ToString(),
+                        PresignedUrl = s3Client.GetPreSignedURL(urlRequest),
+                    };
+                });
+            }
+            catch
+            { throw new Exception("Picture in bucket has unreadable name"); }
             return s3Object;
         }
 

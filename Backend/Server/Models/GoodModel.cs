@@ -16,6 +16,9 @@ namespace Server.Models
 
         public string? S3bucket { get; set; }
 
+        public string? ShortDescription { get; set; }
+        public string? Description { get; set; }
+
         public List<OrderModel> Orders { get; set; } = new List<OrderModel>();
         public List<TagModel> Tags { get; set; } = new List<TagModel>();
     }

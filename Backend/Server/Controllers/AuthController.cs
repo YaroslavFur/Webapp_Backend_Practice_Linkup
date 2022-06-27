@@ -54,7 +54,7 @@ namespace Server.Controllers
                     _db.Sessions.Remove(session);
                     throw new Exception(result.ToString());
                 }
-                user.S3bucket = $"user{user.Id}";
+                user.S3bucket = user.Id;
                 _db.SaveChanges();
             }
             catch (Exception exception)

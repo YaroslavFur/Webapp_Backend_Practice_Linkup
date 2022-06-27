@@ -35,7 +35,7 @@ namespace Server.Controllers
             if (tagExists != null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag {model.Name} already exists" });
 
-            model.S3bucket = $"tag{Guid.NewGuid().ToString()}";
+            model.S3bucket = Guid.NewGuid().ToString();
 
             _db.Tags.Add(model);
             _db.SaveChanges();
@@ -54,7 +54,7 @@ namespace Server.Controllers
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Tag doesn't have bucket attached" });
             try
             {
-                var s3Objects = await BucketOperator.GetObjectsFromBucket(tagExists.S3bucket, _s3Client, _configuration);
+                var s3Objects = await BucketOperator.GetObjectsFromBucket($"tag{tagExists.S3bucket}", _s3Client, _configuration);
                 return StatusCode(StatusCodes.Status200OK, new
                 {
                     Status = "Success",
@@ -97,7 +97,7 @@ namespace Server.Controllers
             
             if (tagExists.S3bucket != null)
             {
-                await _s3Client.DeleteObjectAsync(_configuration["AWS:BucketName"], tagExists.S3bucket);
+                await _s3Client.DeleteObjectAsync(_configuration["AWS:BucketName"], $"tag{tagExists.S3bucket}");
             }
 
             _db.Tags.Remove(tagExists);
@@ -135,7 +135,7 @@ namespace Server.Controllers
 
             try
             {
-                await BucketOperator.UpdateFileInBucket(tagExists.S3bucket, picture, _s3Client, _configuration);
+                await BucketOperator.UpdateFileInBucket($"tag{tagExists.S3bucket}", picture, _s3Client, _configuration);
             }
             catch(Exception exception)
             {
@@ -157,7 +157,7 @@ namespace Server.Controllers
                 {
                     try
                     {
-                        s3Objects = await BucketOperator.GetObjectsFromBucket(tag.S3bucket, s3Client, configuration);
+                        s3Objects = await BucketOperator.GetObjectsFromBucket($"tag{tag.S3bucket}", s3Client, configuration);
                     }
                     catch
                     {

@@ -36,7 +36,7 @@ namespace Server.Controllers
             if (goodExists != null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good {model.Name} already exists" });
 
-            model.S3bucket = $"good{Guid.NewGuid().ToString()}";
+            model.S3bucket = Guid.NewGuid().ToString();
 
             _db.Goods.Add(model);
             _db.SaveChanges();
@@ -55,7 +55,7 @@ namespace Server.Controllers
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good doesn't have bucket attached" });
             try
             {
-                var s3Objects = await BucketOperator.GetObjectsFromBucket(goodExists.S3bucket, _s3Client, _configuration);
+                var s3Objects = await BucketOperator.GetObjectsFromBucket($"good{goodExists.S3bucket}", _s3Client, _configuration);
                 return StatusCode(StatusCodes.Status200OK, new
                 {
                     Status = "Success",
@@ -101,7 +101,7 @@ namespace Server.Controllers
 
             if (goodExists.S3bucket != null)
             {
-                await _s3Client.DeleteObjectAsync(_configuration["AWS:BucketName"], goodExists.S3bucket);
+                await _s3Client.DeleteObjectAsync(_configuration["AWS:BucketName"], $"good{goodExists.S3bucket}");
             }
 
             _db.Goods.Remove(goodExists);
@@ -190,7 +190,6 @@ namespace Server.Controllers
         public async Task<ActionResult> UpdateGoodPicture([FromForm] IFormFile picture, int id)
         {
             var goodExists = _db.Goods.FirstOrDefault(good => good.Id == id);
-
             if (goodExists == null)
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
             if (goodExists.S3bucket == null)
@@ -198,7 +197,7 @@ namespace Server.Controllers
 
             try
             {
-                await BucketOperator.UpdateFileInBucket(goodExists.S3bucket, picture, _s3Client, _configuration);
+                await BucketOperator.UpdateFileInBucket($"good{goodExists.S3bucket}", picture, _s3Client, _configuration);
             }
             catch (Exception exception)
             {
@@ -206,6 +205,82 @@ namespace Server.Controllers
             }
 
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "GoodPicture updated successfully" });
+        }
+
+        [Route("updategooddetails/{id}")]
+        [HttpPut]
+        public async Task<ActionResult> UpdateGoodDetails(
+            [FromForm] List<PictureModel> pictures, [FromForm] string shortDescription, [FromForm] string description, int id)
+        {
+            var goodExists = _db.Goods.FirstOrDefault(good => good.Id == id);
+            if (goodExists == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
+            if (goodExists.S3bucket == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "S3 bucket not attached" });
+
+            try
+            {
+                foreach (var picture in pictures)
+                {
+                    if (picture.file == null || picture.Id == null)
+                        throw new Exception("Pictures and Ids can't be empty");
+                    await BucketOperator.UpdateFileInBucket($"good{goodExists.S3bucket}{picture.Id}", picture.file, _s3Client, _configuration);
+                }
+            }
+            catch (Exception exception)
+            {
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = exception.Message });
+            }
+            goodExists.ShortDescription = shortDescription;
+            goodExists.Description = description;
+            _db.SaveChanges();
+
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "GoodPicture updated successfully" });
+        }
+
+        [Route("getgooddetails/{id}")]
+        [HttpGet]
+        public async Task<ActionResult> GetGoodDetails(int id)
+        {
+            var goodExists = _db.Goods.FirstOrDefault(good => good.Id == id);
+            if (goodExists == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good with Id = {id} does not exist" });
+            if (goodExists.S3bucket == null)
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good doesn't have bucket attached" });
+            try
+            {
+                string key = $"good{goodExists.S3bucket}";
+                var pictures = (await BucketOperator.GetObjectsFromBucket(key, _s3Client, _configuration)).ToList();
+                List<S3ObjectDtoModel> picturesWithIds = new List<S3ObjectDtoModel>();
+                foreach (var picture in pictures)
+                {
+                    if (picture.Name != null)
+                    {
+                        string strId = picture.Name.Replace(key, "");
+                        if (strId != "")
+                        {
+                            picture.Id = int.Parse(strId);
+                            picturesWithIds.Add(picture);
+                        }
+                    }   
+                }
+
+                return StatusCode(StatusCodes.Status200OK, new
+                {
+                    Status = "Success",
+                    Details = new
+                    {
+                        Id = goodExists.Id,
+                        ShortDescription = goodExists.ShortDescription,
+                        Description = goodExists.Description,
+                        Pictures = picturesWithIds
+                    }
+                });
+            }
+            catch
+            {
+                return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Can't load picture" });
+            }
         }
 
         public static async Task<List<object>> GoodsToJsonAsync(IEnumerable<GoodModel> goods, AppDbContext db, IAmazonS3 s3Client, IConfiguration configuration)
@@ -221,7 +296,7 @@ namespace Server.Controllers
                 {
                     try
                     {
-                        s3Objects = await BucketOperator.GetObjectsFromBucket(good.S3bucket, s3Client, configuration);
+                        s3Objects = await BucketOperator.GetObjectsFromBucket($"good{good.S3bucket}", s3Client, configuration);
                     }
                     catch
                     {
@@ -239,6 +314,12 @@ namespace Server.Controllers
             }
             return resultGoods;
         }
+    }
+
+    public class PictureModel
+    {
+        public int? Id { get; set; }
+        public IFormFile? file { get; set; }
     }
 
     public struct TagIds

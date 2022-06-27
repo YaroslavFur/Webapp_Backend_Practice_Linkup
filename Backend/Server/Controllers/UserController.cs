@@ -90,7 +90,7 @@ namespace Server.Controllers
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"User doesn't have bucket attached" });
             try
             {
-                var s3Objects = await BucketOperator.GetObjectsFromBucket(thisUser.S3bucket, _s3Client, _configuration);
+                var s3Objects = await BucketOperator.GetObjectsFromBucket($"user{thisUser.S3bucket}", _s3Client, _configuration);
                 return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Picture = s3Objects });
             }
             catch
@@ -114,7 +114,7 @@ namespace Server.Controllers
 
             try
             {
-                await BucketOperator.UpdateFileInBucket(thisUser.S3bucket, picture, _s3Client, _configuration);
+                await BucketOperator.UpdateFileInBucket($"user{thisUser.S3bucket}", picture, _s3Client, _configuration);
             }
             catch (Exception exception)
             {
@@ -137,7 +137,7 @@ namespace Server.Controllers
 
             if (thisUser != null && thisUser.S3bucket != null)
             {
-                await _s3Client.DeleteObjectAsync(_configuration["AWS:BucketName"], thisUser.S3bucket);
+                await _s3Client.DeleteObjectAsync(_configuration["AWS:BucketName"], $"user{thisUser.S3bucket}");
             }
 
             _db.Sessions.Remove(thisSession);
