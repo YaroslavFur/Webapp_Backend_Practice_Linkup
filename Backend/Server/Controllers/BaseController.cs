@@ -1,5 +1,6 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Server.Data;
 using Server.Models;
@@ -25,6 +26,7 @@ namespace Server.Controllers
             _configuration = configuration;
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("createbase")]
         [HttpPost]
         public ActionResult CreateBase([FromBody] BaseModel model)
@@ -71,6 +73,7 @@ namespace Server.Controllers
             }
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("updatebase/{id}")]
         [HttpPut]
         public ActionResult UpdateBase([FromBody] BaseModel model, int id)
@@ -86,6 +89,7 @@ namespace Server.Controllers
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("deletebase/{id}")]
         [HttpDelete]
         public async Task<ActionResult> DeleteBase(int id)
@@ -122,6 +126,7 @@ namespace Server.Controllers
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Bases = resultBases });
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("updatebasepicture/{id}")]
         [HttpPut]
         public async Task<ActionResult> UpdateBasePicture([FromForm] IFormFile picture, int id)

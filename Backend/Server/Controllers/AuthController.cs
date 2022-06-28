@@ -10,7 +10,7 @@ using Server.Data;
 
 namespace Server.Controllers
 {
-    [Route("auth/")]
+    [Route("auth")]
     [ApiController]
     public class AuthController : Controller
     {
@@ -65,7 +65,7 @@ namespace Server.Controllers
             TokenModel tokens;
             try
             {
-                tokens = TokenOperator.GenerateAccessRefreshTokens(session, _configuration, _db, user);
+                tokens = await TokenOperator.GenerateAccessRefreshTokens(session, _configuration, _db, _userManager, user);
             }
             catch
             {
@@ -96,7 +96,7 @@ namespace Server.Controllers
             TokenModel tokens;
             try
             {
-                tokens = TokenOperator.GenerateAccessRefreshTokens(session, _configuration, _db, user);
+                tokens = await TokenOperator.GenerateAccessRefreshTokens(session, _configuration, _db, _userManager, user);
             }
             catch
             {
@@ -113,7 +113,7 @@ namespace Server.Controllers
 
         [Route("signupanonymous")]
         [HttpPost]
-        public ActionResult SignUpAnonymous()
+        public async Task<ActionResult> SignUpAnonymous()
         {
             SessionModel session;
 
@@ -124,7 +124,7 @@ namespace Server.Controllers
             TokenModel tokens;
             try
             {
-                tokens = TokenOperator.GenerateAccessRefreshTokens(session, _configuration, _db);
+                tokens = await TokenOperator.GenerateAccessRefreshTokens(session, _configuration, _db, _userManager);
             }
             catch
             {

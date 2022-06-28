@@ -27,6 +27,7 @@ namespace Server.Controllers
             _configuration = configuration;
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("createtag")]
         [HttpPost]
         public ActionResult CreateTag([FromBody] TagModel model)
@@ -72,6 +73,7 @@ namespace Server.Controllers
             }            
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("updatetag/{id}")]
         [HttpPut]
         public ActionResult UpdateTag([FromBody] TagModel model, int id)
@@ -86,7 +88,7 @@ namespace Server.Controllers
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
         }
 
-
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("deletetag/{id}")]
         [HttpDelete]
         public async Task<ActionResult> DeleteTag(int id)
@@ -123,6 +125,7 @@ namespace Server.Controllers
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Tags = resultTags });
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("updatetagpicture/{id}")]
         [HttpPut]
         public async Task<ActionResult> UpdateTagPicture([FromForm] IFormFile picture, int id)

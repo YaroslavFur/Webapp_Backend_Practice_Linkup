@@ -1,5 +1,6 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Server.Data;
@@ -28,6 +29,7 @@ namespace Server.Controllers
             _configuration = configuration;
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("creategood")]
         [HttpPost]
         public ActionResult CreateGood([FromBody] GoodModel model)
@@ -75,6 +77,7 @@ namespace Server.Controllers
             }
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("updategood/{id}")]
         [HttpPut]
         public ActionResult UpdateGood([FromBody] GoodModel model, int id)
@@ -90,7 +93,7 @@ namespace Server.Controllers
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
         }
 
-
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("deletegood/{id}")]
         [HttpDelete]
         public async Task<ActionResult> DeleteGood(int id)
@@ -109,6 +112,7 @@ namespace Server.Controllers
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success" });
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("setgoodtags/{id}")]
         [HttpPut]
         public ActionResult SetGoodTags([FromBody] TagIds tagsProvided, int id)
@@ -185,6 +189,7 @@ namespace Server.Controllers
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Goods = resultGoods, Tags = resultTags });
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("updategoodpicture/{id}")]
         [HttpPut]
         public async Task<ActionResult> UpdateGoodPicture([FromForm] IFormFile picture, int id)
@@ -207,6 +212,7 @@ namespace Server.Controllers
             return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "GoodPicture updated successfully" });
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [Route("updategooddetails/{id}")]
         [HttpPut]
         public async Task<ActionResult> UpdateGoodDetails(
@@ -235,7 +241,7 @@ namespace Server.Controllers
             goodExists.Description = description;
             _db.SaveChanges();
 
-            return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "GoodPicture updated successfully" });
+            return StatusCode(StatusCodes.Status200OK, new { Status = "Success", Message = "Details updated successfully" });
         }
 
         [Route("getgooddetails/{id}")]

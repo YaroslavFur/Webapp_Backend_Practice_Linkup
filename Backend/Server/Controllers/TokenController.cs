@@ -30,7 +30,7 @@ namespace Server.Controllers
 
         [HttpPost]
         [Route("refreshtoken")]
-        public IActionResult RefreshToken([FromBody] TokenModel tokenModel)
+        public async Task<IActionResult> RefreshToken([FromBody] TokenModel tokenModel)
         {
             if (tokenModel is null || tokenModel.AccessToken == null || tokenModel.RefreshToken == null)
             {
@@ -68,7 +68,7 @@ namespace Server.Controllers
 
             TokenModel tokens;
             try
-            { tokens = TokenOperator.GenerateAccessRefreshTokens(thisSession, _configuration, _db, thisUser); }
+            { tokens = await TokenOperator.GenerateAccessRefreshTokens(thisSession, _configuration, _db, _userManager, thisUser); }
             catch
             { return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = "Failed creating tokens" }); }
 
