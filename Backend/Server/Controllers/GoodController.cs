@@ -57,7 +57,7 @@ namespace Server.Controllers
                 return StatusCode(StatusCodes.Status422UnprocessableEntity, new { Status = "Error", Message = $"Good doesn't have bucket attached" });
             try
             {
-                var s3Objects = await BucketOperator.GetObjectsFromBucket($"good{goodExists.S3bucket}", _s3Client, _configuration);
+                var s3Objects = await BucketOperator.GetObjectsFromBucket($"good{goodExists.S3bucket}0", _s3Client, _configuration);
                 return StatusCode(StatusCodes.Status200OK, new
                 {
                     Status = "Success",
@@ -202,7 +202,7 @@ namespace Server.Controllers
 
             try
             {
-                await BucketOperator.UpdateFileInBucket($"good{goodExists.S3bucket}", picture, _s3Client, _configuration);
+                await BucketOperator.UpdateFileInBucket($"good{goodExists.S3bucket}0", picture, _s3Client, _configuration);
             }
             catch (Exception exception)
             {
@@ -263,7 +263,7 @@ namespace Server.Controllers
                     if (picture.Name != null)
                     {
                         string strId = picture.Name.Replace(key, "");
-                        if (strId != "")
+                        if (strId != "0")
                         {
                             picture.Id = int.Parse(strId);
                             picturesWithIds.Add(picture);
@@ -302,7 +302,7 @@ namespace Server.Controllers
                 {
                     try
                     {
-                        s3Objects = await BucketOperator.GetObjectsFromBucket($"good{good.S3bucket}", s3Client, configuration);
+                        s3Objects = await BucketOperator.GetObjectsFromBucket($"good{good.S3bucket}0", s3Client, configuration);
                     }
                     catch
                     {

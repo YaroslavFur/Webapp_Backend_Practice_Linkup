@@ -113,7 +113,7 @@ namespace Server.Controllers
                 {
                     try
                     {
-                        s3Objects = await BucketOperator.GetObjectsFromBucket($"good{good.S3bucket}", s3Client, configuration);
+                        s3Objects = await BucketOperator.GetObjectsFromBucket($"good{good.S3bucket}0", s3Client, configuration);
                     }
                     catch
                     {
